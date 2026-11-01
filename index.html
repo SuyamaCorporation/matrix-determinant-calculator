@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>行列 行列式 計算 ツール</title>
+<script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 min-h-screen p-4">
+<div class="max-w-2xl mx-auto">
+  <h1 class="text-2xl font-bold text-gray-800 mb-1">🔢 行列 計算 ツール</h1>
+  <p class="text-gray-500 text-sm mb-4">行列式・逆行列・行列積・転置行列を計算（手順付き）</p>
+
+  <!-- Size Toggle -->
+  <div class="flex gap-2 mb-4">
+    <button id="btn2x2" onclick="setSize(2)" class="px-4 py-2 rounded-lg font-semibold text-sm bg-blue-600 text-white transition" aria-label="2×2行列">2×2</button>
+    <button id="btn3x3" onclick="setSize(3)" class="px-4 py-2 rounded-lg font-semibold text-sm bg-gray-200 text-gray-700 transition" aria-label="3×3行列">3×3</button>
+  </div>
+
+  <!-- Operation Tabs -->
+  <div class="flex gap-2 mb-4 flex-wrap">
+    <button onclick="setOp('det')" id="opDet" class="px-3 py-1.5 rounded-lg text-sm font-medium bg-indigo-600 text-white">行列式</button>
+    <button onclick="setOp('inv')" id="opInv" class="px-3 py-1.5 rounded-lg text-sm font-medium bg-gray-200 text-gray-700">逆行列</button>
+    <button onclick="setOp('mul')" id="opMul" class="px-3 py-1.5 rounded-lg text-sm font-medium bg-gray-200 text-gray-700">行列積</button>
+    <button onclick="setOp('trn')" id="opTrn" class="px-3 py-1.5 rounded-lg text-sm font-medium bg-gray-200 text-gray-700">転置</button>
+  </div>
+
+  <!-- Matrix Input A -->
+  <div class="bg-white rounded-xl shadow p-4 mb-3">
+    <h2 class="font-semibold text-gray-700 mb-2">行列 A</h2>
+    <div id="matrixA" class="inline-grid gap-2"></div>
+  </div>
+
+  <!-- Matrix Input B (for multiplication) -->
+  <div id="matrixBSection" class="bg-white rounded-xl shadow p-4 mb-3 hidden">
+    <h2 class="font-semibold text-gray-700 mb-2">行列 B</h2>
+    <div id="matrixB" class="inline-grid gap-2"></div>
+  </div>
+
+  <button onclick="calculate()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-xl transition mb-4" aria-label="計算する">計算する</button>
+
+  <!-- Result -->
+  <div id="result" class="hidden bg-white rounded-xl shadow p-4">
+    <h2 class="font-semibold text-gray-700 mb-3">計算結果</h2>
+    <div id="resultContent"></div>
+  </div>
+</div>
+
+<script>
+let size = 2;
+let op = "det";
+
+function setSize(n) {
+  size = n;
+  document.getElementById("btn2x2").className = n===2 ? "px-4 py-2 rounded-lg font-semibold text-sm bg-blue-600 text-white transition" : "px-4 py-2 rounded-lg font-semibold text-sm bg-gray-200 text-gray-700 transition";
+  document.getElementById("btn3x3").className = n===3 ? "px-4 py-2 rounded-lg font-semibold text-sm bg-blue-600 text-white transition" : "px-4 py-2 rounded-lg font-semibold text-sm bg-gray-200 text-gray-700 transition";
+  renderMatrices();
+  document.getElementById("result").classList.add("hidden");
+}
+
+function setOp(o) {
+  op = o;
+  ["det","inv","mul","trn"].forEach(id => {
+    const el = document.getElementById("op" + id.charAt(0).toUpperCase() + id.slice(1));
+    el.className = id === o
+      ? "px-3 py-1.5 rounded-lg text-sm font-medium bg-indigo-600 text-white"
+      : "px-3 py-1.5 rounded-lg text-sm font-medium bg-gray-200 text-gray-700";
+  });
+  document.getElementById("matrixBSection").classList.toggle("hidden", o !== "mul");
+  document.getElementById("result").classList.add("hidden");
+}
+
+function renderMatrix(containerId, n, prefix) {
+  const container = document.getElementById(containerId);
+  container.style.gridTemplateColumns = `repeat(${n}, minmax(0, 1fr))`;
+  container.innerHTML = "";
+  for (let i = 0; i < n; i++) {
+    for (let j = 0; j < n; j++) {
+      const input = document.createElement("input");
+      input.type = "number";
+      input.id = `${prefix}_${i}_${j}`;
+      input.value = (i === j) ? "1" : "0";
+      input.step = "any";
+      input.className = "w-16 border border-gray-300 rounded-lg text-center py-2 font-mono text-lg focus:outline-none focus:ring-2 focus:ring-indigo-400";
+      input.setAttribute("aria-label", `${prefix} 行${i+1} 列${j+1}`);
+      container.appendChild(input);
+    }
+  }
+}
+
+function renderMatrices() {
+  renderMatrix("matrixA", size, "A");
+  renderMatrix("matrixB", size, "B");
+}
+
+function getMatrix(prefix, n) {
+  const m = [];
+  for (let i = 0; i < n; i++) {
+    m.push([]);
+    for (let j = 0; j < n; j++) {
+      m[i].push(parseFloat(document.getElementById(`${prefix}_${i}_${j}`).value) || 0);
+    }
+  }
+  return m;
+}
+
+function det2(m) { return m[0][0]*m[1][1] - m[0][1]*m[1][0]; }
+
+function det3(m) {
+  return m[0][0]*(m[1][1]*m[2][2]-m[1][2]*m[2][1])
+       - m[0][1]*(m[1][0]*m[2][2]-m[1][2]*m[2][0])
+       + m[0][2]*(m[1][0]*m[2][1]-m[1][1]*m[2][0]);
+}
+
+function inv2(m) {
+  const d = det2(m);
+  if (Math.abs(d) < 1e-10) return null;
+  return [[m[1][1]/d, -m[0][1]/d], [-m[1][0]/d, m[0][0]/d]];
+}
+
+function inv3(m) {
+  const d = det3(m);
+  if (Math.abs(d) < 1e-10) return null;
+  const cof = [
+    [ m[1][1]*m[2][2]-m[1][2]*m[2][1], -(m[1][0]*m[2][2]-m[1][2]*m[2][0]),  m[1][0]*m[2][1]-m[1][1]*m[2][0]],
+    [-(m[0][1]*m[2][2]-m[0][2]*m[2][1]),  m[0][0]*m[2][2]-m[0][2]*m[2][0], -(m[0][0]*m[2][1]-m[0][1]*m[2][0])],
+    [ m[0][1]*m[1][2]-m[0][2]*m[1][1], -(m[0][0]*m[1][2]-m[0][2]*m[1][0]),  m[0][0]*m[1][1]-m[0][1]*m[1][0]]
+  ];
+  // Transpose cofactor = adjugate
+  const adj = Array.from({length:3}, (_,i) => Array.from({length:3}, (_,j) => cof[j][i]));
+  return adj.map(row => row.map(v => v/d));
+}
+
+function mul(A, B, n) {
+  const C = Array.from({length:n}, () => new Array(n).fill(0));
+  for (let i = 0; i < n; i++)
+    for (let j = 0; j < n; j++)
+      for (let k = 0; k < n; k++)
+        C[i][j] += A[i][k] * B[k][j];
+  return C;
+}
+
+function transpose(m) {
+  return m.map((row, i) => row.map((_, j) => m[j][i]));
+}
+
+function fmtNum(n) {
+  if (Math.abs(n) < 1e-10) return "0";
+  if (Number.isInteger(n)) return n.toString();
+  return n.toFixed(4).replace(/\.?0+$/, "");
+}
+
+function renderResultMatrix(m) {
+  const n = m.length;
+  let html = `<div class="inline-grid gap-1" style="grid-template-columns: repeat(${n}, minmax(0,1fr))">`;
+  m.forEach(row => {
+    row.forEach(v => {
+      html += `<div class="w-20 text-center bg-indigo-50 border border-indigo-200 rounded py-1.5 font-mono text-sm">${fmtNum(v)}</div>`;
+    });
+  });
+  html += "</div>";
+  return html;
+}
+
+function calculate() {
+  const A = getMatrix("A", size);
+  const rc = document.getElementById("resultContent");
+  let html = "";
+
+  if (op === "det") {
+    const d = size === 2 ? det2(A) : det3(A);
+    const singular = Math.abs(d) < 1e-10;
+
+    if (size === 2) {
+      html = `
+        <div class="font-mono text-sm bg-gray-50 rounded-lg p-3 mb-3">
+          <div class="text-gray-600">サラスの公式 (2×2):</div>
+          <div class="text-indigo-700 mt-1">det(A) = a₁₁×a₂₂ - a₁₂×a₂₁</div>
+          <div class="mt-1">= ${fmtNum(A[0][0])} × ${fmtNum(A[1][1])} − ${fmtNum(A[0][1])} × ${fmtNum(A[1][0])}</div>
+          <div class="mt-1">= ${fmtNum(A[0][0]*A[1][1])} − ${fmtNum(A[0][1]*A[1][0])}</div>
+        </div>`;
+    } else {
+      html = `
+        <div class="font-mono text-sm bg-gray-50 rounded-lg p-3 mb-3">
+          <div class="text-gray-600">余因子展開 (3×3 第1行):</div>
+          <div class="text-indigo-700 mt-1">det(A) = a₁₁(a₂₂a₃₃−a₂₃a₃₂) − a₁₂(a₂₁a₃₃−a₂₃a₃₁) + a₁₃(a₂₁a₃₂−a₂₂a₃₁)</div>
+          <div class="mt-2 text-sm">
+            <span class="text-green-600">+${fmtNum(A[0][0])}×(${fmtNum(A[1][1])}×${fmtNum(A[2][2])}−${fmtNum(A[1][2])}×${fmtNum(A[2][1])})</span><br>
+            <span class="text-red-600">−${fmtNum(A[0][1])}×(${fmtNum(A[1][0])}×${fmtNum(A[2][2])}−${fmtNum(A[1][2])}×${fmtNum(A[2][0])})</span><br>
+            <span class="text-blue-600">+${fmtNum(A[0][2])}×(${fmtNum(A[1][0])}×${fmtNum(A[2][1])}−${fmtNum(A[1][1])}×${fmtNum(A[2][0])})</span>
+          </div>
+        </div>`;
+    }
+    html += `
+      <div class="text-2xl font-bold text-center py-3 ${singular ? "text-red-600" : "text-indigo-700"}">
+        det(A) = ${fmtNum(d)}
+      </div>`;
+    if (singular) html += `<div class="text-center text-red-500 text-sm font-semibold">⚠ 特異行列（行列式 = 0）→ 逆行列は存在しません</div>`;
+
+  } else if (op === "inv") {
+    const inv = size === 2 ? inv2(A) : inv3(A);
+    if (!inv) {
+      html = `<div class="text-center text-red-500 font-semibold py-4">⚠ 特異行列（det = 0）→ 逆行列は存在しません</div>`;
+    } else {
+      const d = size === 2 ? det2(A) : det3(A);
+      html = `<div class="text-sm text-gray-600 mb-2">行列式 det(A) = <strong class="text-indigo-600">${fmtNum(d)}</strong></div>
+              <div class="mb-2 text-sm text-gray-600">A<sup>-1</sup> = (1/det) × 余因子行列の転置:</div>
+              ${renderResultMatrix(inv)}`;
+    }
+
+  } else if (op === "mul") {
+    const B = getMatrix("B", size);
+    const C = mul(A, B, size);
+    html = `<div class="text-sm text-gray-600 mb-2">A × B の結果:</div>${renderResultMatrix(C)}`;
+
+  } else if (op === "trn") {
+    const T = transpose(A);
+    html = `<div class="text-sm text-gray-600 mb-2">A<sup>T</sup>（行と列を入れ替え）:</div>${renderResultMatrix(T)}`;
+  }
+
+  rc.innerHTML = html;
+  document.getElementById("result").classList.remove("hidden");
+}
+
+// Init
+renderMatrices();
+</script>
+</body>
+</html>
